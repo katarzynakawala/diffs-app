@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"text/template"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/katarzynakawala/diffs-app/pkg/models/mysql"
@@ -15,6 +16,7 @@ type application struct {
 	errorLog *log.Logger
 	infoLog  *log.Logger
 	snippets *mysql.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -35,11 +37,18 @@ func main() {
 
 	defer db.Close()
 
+	//new template cache
+	templateCache, err := newTemplateCache("./ui/html/")
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
 	//new instance of application with dependencies
 	app := &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
 		snippets: &mysql.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 
 	//creation of struct to use custom logger with every error
