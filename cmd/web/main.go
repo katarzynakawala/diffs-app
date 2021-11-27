@@ -7,21 +7,25 @@ import (
 	"net/http"
 	"os"
 	"text/template"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/golangcollege/sessions"
 	"github.com/katarzynakawala/diffs-app/pkg/models/mysql"
 )
 
 type application struct {
-	errorLog *log.Logger
-	infoLog  *log.Logger
-	snippets *mysql.SnippetModel
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	session       *sessions.Session
+	snippets      *mysql.SnippetModel
 	templateCache map[string]*template.Template
 }
 
 func main() {
 	addr := flag.String("addr", ":4000", "HTTP network address")
 	dsn := flag.String("dns", "web:pass@/diffsapp?parseTime=true", "MySQL data source name")
+	secret := flag.String("secret", "f7Mfh+gFbnvHgS*+5Ph8qFWhTzbpd@rt", "Secret key")
 	flag.Parse()
 
 	//logger for writting information messages
@@ -35,6 +39,10 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	//new session
+	session := sessions.New([]byte(*secret))
+	session.Lifetime = 12 * time.Hour
+
 	defer db.Close()
 
 	//new template cache
@@ -45,9 +53,10 @@ func main() {
 
 	//new instance of application with dependencies
 	app := &application{
-		errorLog: errorLog,
-		infoLog:  infoLog,
-		snippets: &mysql.SnippetModel{DB: db},
+		errorLog:      errorLog,
+		infoLog:       infoLog,
+		session:       session,
+		snippets:      &mysql.SnippetModel{DB: db},
 		templateCache: templateCache,
 	}
 
@@ -69,7 +78,7 @@ func openDB(dsn string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	if err = db.Ping(); err!= nil {
+	if err = db.Ping(); err != nil {
 		return nil, err
 	}
 	return db, nil
