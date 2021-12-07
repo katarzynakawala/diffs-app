@@ -109,3 +109,42 @@ func TestSignupUser(t *testing.T) {
         })
     }
 }
+
+func TestCreateSnippetForm(t *testing.T) {
+	app := newTestApplication(t)
+	ts := newTestserver(t, app.routes())
+	defer ts.Close()
+
+	t.Run("Unauthenticated", func(t *testing.T) {
+		code, headers, _ := ts.get(t, "/snippet/create")
+		if code != http.StatusSeeOther {
+			t.Errorf("want %d; got %d", http.StatusSeeOther, code)
+		}
+		if headers.Get("Location") != "/user/login" {
+			t.Errorf("want %s; got %s", "/user/login", headers.Get("Location"))
+		}
+	})
+
+	t.Run("Authenticated", func(t *testing.T) {
+		// Authenticate the user...
+		_, _, body := ts.get(t, "/user/login")
+		csrfToken := extractCSRFToken(t, body)
+
+		form := url.Values{}
+		form.Add("email", "kasia@kasia.com")
+		form.Add("password", "")
+		form.Add("csrf_token", csrfToken)
+		ts.postForm(t, "/user/login", form)
+
+		// Then check that the authenticated user is shown the create snippet form.
+		code, _, body := ts.get(t, "/snippet/create")
+		if code != 200 {
+			t.Errorf("want %d; got %d", 200, code)
+		}
+
+		formTag := "<form action='/snippet/create' method='POST'>"
+		if !bytes.Contains(body, []byte(formTag)) {
+			t.Errorf("want body %s to contain %q", body, formTag)
+		}
+	})
+}
