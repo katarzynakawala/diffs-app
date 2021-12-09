@@ -21,17 +21,18 @@ type contextKey string
 const contextKeyIsAuthenticated = contextKey("isAuthenticated")
 
 type application struct {
-	errorLog      *log.Logger
-	infoLog       *log.Logger
-	session       *sessions.Session
-	snippets      interface {
+	debug    bool
+	errorLog *log.Logger
+	infoLog  *log.Logger
+	session  *sessions.Session
+	snippets interface {
 		Insert(string, string, string) (int, error)
 		Get(int) (*models.Snippet, error)
 		Latest() ([]*models.Snippet, error)
 	}
 	templateCache map[string]*template.Template
 	users         interface {
-		Insert(string, string, string)  error
+		Insert(string, string, string) error
 		Authenticate(string, string) (int, error)
 		Get(int) (*models.User, error)
 		ChangePassword(int, string, string) error
@@ -40,6 +41,7 @@ type application struct {
 
 func main() {
 	addr := flag.String("addr", ":4000", "HTTP network address")
+	debug := flag.Bool("debug", false, "Enable debug mode")
 	dsn := flag.String("dns", "web:pass@/diffsapp?parseTime=true", "MySQL data source name")
 	secret := flag.String("secret", "f7Mfh+gFbnvHgS*+5Ph8qFWhTzbpd@rt", "Secret key")
 	flag.Parse()
@@ -70,17 +72,18 @@ func main() {
 
 	//new instance of application with dependencies
 	app := &application{
+		debug:         *debug,
 		errorLog:      errorLog,
 		infoLog:       infoLog,
 		session:       session,
 		snippets:      &mysql.SnippetModel{DB: db},
 		templateCache: templateCache,
-		users: &mysql.UserModel{DB: db},
+		users:         &mysql.UserModel{DB: db},
 	}
 
 	tlsConfig := &tls.Config{
 		PreferServerCipherSuites: true,
-		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
+		CurvePreferences:         []tls.CurveID{tls.X25519, tls.CurveP256},
 	}
 
 	//creation of struct to use custom logger with every error
